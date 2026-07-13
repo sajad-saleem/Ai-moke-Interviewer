@@ -8,15 +8,22 @@ interface UseSpeechRecognitionReturn {
   startListening: () => void;
   stopListening: () => void;
   resetTranscript: () => void;
+  setTranscript: (text: string) => void;
   isSupported: boolean;
   error: string | null;
 }
 
 export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState("");
+  const [transcript, setTranscriptState] = useState("");
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const transcriptRef = useRef(""); // Keeps track of the committed transcript
+
+  const setTranscript = useCallback((text: string) => {
+    transcriptRef.current = text;
+    setTranscriptState(text);
+  }, []);
 
   const isSupported =
     typeof window !== "undefined" &&
@@ -39,17 +46,25 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     recognition.onstart = () => setIsListening(true);
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalTranscript = "";
-      let interimTranscript = "";
+      let currentFinal = "";
+      let currentInterim = "";
+
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const t = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          finalTranscript += t + " ";
+          currentFinal += t + " ";
         } else {
-          interimTranscript += t;
+          currentInterim += t;
         }
       }
-      setTranscript((prev) => (prev + finalTranscript).trim() || interimTranscript);
+
+      if (currentFinal) {
+        // Append final results to our persistent transcript
+        transcriptRef.current = (transcriptRef.current + " " + currentFinal).replace(/\s+/g, ' ').trim() + " ";
+      }
+
+      // Display the committed transcript plus any current interim words
+      setTranscriptState((transcriptRef.current + currentInterim).trim());
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -71,7 +86,8 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   }, []);
 
   const resetTranscript = useCallback(() => {
-    setTranscript("");
+    transcriptRef.current = "";
+    setTranscriptState("");
     setError(null);
   }, []);
 
@@ -81,6 +97,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     startListening,
     stopListening,
     resetTranscript,
+    setTranscript,
     isSupported,
     error,
   };

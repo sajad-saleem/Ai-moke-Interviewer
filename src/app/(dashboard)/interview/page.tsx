@@ -35,7 +35,7 @@ export default function InterviewPage() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const { post, patch, get } = useApi();
-  const { isListening, transcript, startListening, stopListening, resetTranscript, isSupported } = useSpeechRecognition();
+  const { isListening, transcript, startListening, stopListening, resetTranscript, setTranscript, isSupported } = useSpeechRecognition();
   const { speak, stopSpeaking, isSpeaking } = useTextToSpeech();
 
   // Setup state
@@ -48,7 +48,6 @@ export default function InterviewPage() {
   // Session state
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
-  const [inputText, setInputText] = useState("");
   const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null);
   const [currentQuestionText, setCurrentQuestionText] = useState("");
   const [questionOrder, setQuestionOrder] = useState(0);
@@ -110,13 +109,6 @@ export default function InterviewPage() {
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Sync voice transcript to input
-  useEffect(() => {
-    if (transcript) {
-      setTimeout(() => setInputText(transcript), 0);
-    }
-  }, [transcript]);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -207,13 +199,12 @@ export default function InterviewPage() {
   }
 
   async function submitAnswer() {
-    const text = inputText.trim();
+    const text = transcript.trim();
     if (!text || !sessionId || !currentQuestionId || aiThinking) return;
 
     if (isListening) stopListening();
     stopSpeaking();
     resetTranscript();
-    setInputText("");
     addMsg("user", text);
     setAiThinking(true);
 
@@ -521,8 +512,8 @@ export default function InterviewPage() {
               <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur opacity-20 group-focus-within:opacity-40 transition duration-500"></div>
               <textarea
                 ref={inputRef}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+                value={transcript}
+                onChange={(e) => setTranscript(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={aiThinking}
                 placeholder="Type your answer… or use the mic (Enter to send)"
@@ -538,7 +529,7 @@ export default function InterviewPage() {
             </div>
             <button
               onClick={submitAnswer}
-              disabled={!inputText.trim() || aiThinking}
+              disabled={!transcript.trim() || aiThinking}
               className="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:from-gray-800 disabled:to-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed text-white flex items-center justify-center flex-shrink-0 transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)] hover:shadow-[0_0_20px_rgba(168,85,247,0.5)]"
             >
               {aiThinking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 ml-1" />}
